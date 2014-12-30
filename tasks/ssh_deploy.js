@@ -33,7 +33,8 @@ module.exports = function(grunt) {
         var Connection = require('ssh2');
         var client = require('scp2');
         var moment = require('moment');
-        var timestamp = moment().format('YYYYMMDDHHmmssSSS');
+        var timestamp = moment().format('YYYYMMDDHHmm');
+
         var async = require('async');
         var extend = require('extend');
 
@@ -44,6 +45,8 @@ module.exports = function(grunt) {
 
         var options = extend({}, defaults, grunt.config.get('environments').options,
             grunt.config.get('environments')[this.args]['options']);
+
+        var versionLabel = options.versionLabel;
 
         // scp defaults
         client.defaults(getScpOptions(options));
@@ -131,7 +134,7 @@ module.exports = function(grunt) {
             };
 
             var createReleases = function(callback) {
-                var command = 'cd ' + options.deploy_path + ' && mkdir -p releases/' + timestamp;
+                var command = 'cd ' + options.deploy_path + ' && mkdir -p ' + versionLabel;
                 grunt.log.subhead('--------------- CREATING NEW RELEASE');
                 grunt.log.subhead('--- ' + command);
                 execRemote(command, options.debug, callback);
@@ -140,10 +143,10 @@ module.exports = function(grunt) {
             var scpBuild = function(callback) {
                 grunt.log.subhead('--------------- UPLOADING NEW BUILD');
                 grunt.log.debug('SCP FROM LOCAL: ' + options.local_path
-                    + '\n TO REMOTE: ' + options.deploy_path + '/releases/' + timestamp + '/');
+                    + '\n TO REMOTE: ' + options.deploy_path + '/' + versionLabel + '/');
 
                 client.scp(options.local_path, {
-                    path: options.deploy_path + '/releases/' + timestamp + '/'
+                    path: options.deploy_path + '/' + versionLabel + '/'
                 }, function (err) {
                     if (err) {
                         grunt.log.errorlns(err);
@@ -156,7 +159,7 @@ module.exports = function(grunt) {
 
             var updateSymlink = function(callback) {
                 var delete_symlink = 'rm -rf ' + options.deploy_path + '/' + options.current_symlink;
-                var set_symlink = 'cd ' + options.deploy_path + ' && ln -s releases/' + timestamp + ' ' + options.current_symlink;
+                var set_symlink = 'cd ' + options.deploy_path + ' && ln -s ' + versionLabel + ' ' + options.current_symlink;
                 var command = delete_symlink + ' && ' + set_symlink;
                 grunt.log.subhead('--------------- UPDATING SYM LINK');
                 grunt.log.subhead('--- ' + command);
@@ -164,7 +167,7 @@ module.exports = function(grunt) {
             };
 
             var deleteRelease = function(callback) {
-                var command = 'rm -rf ' + options.deploy_path + '/releases/' + timestamp + '/';
+                var command = 'rm -rf ' + options.deploy_path + '/' + versionLabel + '/';
                 grunt.log.subhead('--------------- DELETING RELEASE');
                 grunt.log.subhead('--- ' + command);
                 execRemote(command, options.debug, callback);
