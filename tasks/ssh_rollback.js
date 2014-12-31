@@ -16,6 +16,7 @@ module.exports = function(grunt) {
         var async = require('async');
 
         var options = grunt.config.get('environments')[this.args]['options'];
+        options.current_symlink = options.current_symlink || 'current';
 
 		var c = new Connection();
 		c.on('connect', function() {
@@ -61,7 +62,7 @@ module.exports = function(grunt) {
 
             var updateSymlink = function(callback) {
                 var delete_symlink = 'rm -rf ' + options.deploy_path + '/' + options.current_symlink;
-                var set_symlink = 'cd ' + options.deploy_path + ' && t=`ls -t1 releases/ | sed -n 2p` && ln -s releases/$t ' + options.current_symlink;
+                var set_symlink = 'cd ' + options.deploy_path + ' && t=`ls -t1 | sed -n 2p` && ln -s $t ' + options.current_symlink;
                 var command = delete_symlink + ' && ' + set_symlink;
                 grunt.log.subhead('--------------- UPDATING SYM LINK');
                 grunt.log.subhead('--- ' + command);
@@ -69,7 +70,7 @@ module.exports = function(grunt) {
             };
 
             var deleteRelease = function(callback) {
-                var command = 't=`ls -t1 ' + options.deploy_path + '/releases/ | sed -n 1p` && rm -rf ' + options.deploy_path + '/releases/$t/';
+                var command = 't=`ls -t1 ' + options.deploy_path + '/ | sed -n 1p` && rm -rf ' + options.deploy_path + '/$t/';
                 grunt.log.subhead('--------------- DELETING RELEASE');
                 grunt.log.subhead('--- ' + command);
                 execRemote(command, options.debug, callback);
@@ -81,7 +82,7 @@ module.exports = function(grunt) {
 
                 callback();
             };
-    
+
             async.series([
                 updateSymlink,
                 deleteRelease,

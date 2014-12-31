@@ -175,7 +175,7 @@ module.exports = function(grunt) {
             };
 
             var deleteOldest = function (callback) {
-                var command = 'if [ $(ls -t1 | wc -l) -gt "3" ]; then t=`ls -t1 ' + options.deploy_path + '/releases/ | tail -n 1`; rm -rf ' + options.deploy_path + '/releases/$t/; fi';
+                var command = 'if [ $(ls -t1 ' + options.deploy_path + ' | wc -l) -gt "'+keep+'" ]; then t=`ls -t1 ' + options.deploy_path + '/ | tail -n 1`; rm -rf ' + options.deploy_path + '/$t/; fi';
                 grunt.log.subhead('--------------- DELETING OLDEST RELEASE');
                 grunt.log.subhead('--- ' + command);
                 execRemote(command, options.debug, callback);
