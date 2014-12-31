@@ -47,6 +47,7 @@ module.exports = function(grunt) {
             grunt.config.get('environments')[this.args]['options']);
 
         var versionLabel = options.versionLabel;
+        var keep = options.keep;
 
         // scp defaults
         client.defaults(getScpOptions(options));
@@ -173,6 +174,13 @@ module.exports = function(grunt) {
                 execRemote(command, options.debug, callback);
             };
 
+            var deleteOldest = function (callback) {
+                var command = 'if [ $(ls -t1 | wc -l) -gt "3" ]; then t=`ls -t1 ' + options.deploy_path + '/releases/ | tail -n 1`; rm -rf ' + options.deploy_path + '/releases/$t/; fi';
+                grunt.log.subhead('--------------- DELETING OLDEST RELEASE');
+                grunt.log.subhead('--- ' + command);
+                execRemote(command, options.debug, callback);
+            };
+
             var onAfterDeploy = function(callback){
                 if (typeof options.after_deploy == "undefined" || !options.after_deploy) {
                     callback();
@@ -204,6 +212,7 @@ module.exports = function(grunt) {
                 scpBuild,
                 updateSymlink,
                 onAfterDeploy,
+                deleteOldest,
                 closeConnection
             ], function () {
                 done();
