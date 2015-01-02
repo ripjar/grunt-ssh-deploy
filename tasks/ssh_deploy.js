@@ -54,10 +54,10 @@ module.exports = function(grunt) {
 
         var c = new Connection();
         c.on('connect', function() {
-            grunt.log.subhead('Connecting :: ' + options.host);
+            grunt.log.ok('Connecting to ' + options.host + '...');
         });
         c.on('ready', function() {
-            grunt.log.subhead('Connected :: ' + options.host);
+            grunt.log.ok('Connected');
             // execution of tasks
             execCommands(options,c);
         });
@@ -67,7 +67,7 @@ module.exports = function(grunt) {
             if (err) {throw err;}
         });
         c.on('close', function(had_error) {
-            grunt.log.subhead("Closed :: " + options.host);
+            grunt.log.ok("Closed connection to " + options.host);
 
             return true;
         });
@@ -121,14 +121,15 @@ module.exports = function(grunt) {
                     callback();
                 } else {
                     var command = options.before_deploy;
-                    grunt.log.subhead("--------------- RUNNING PRE-DEPLOY COMMANDS");
+                    grunt.log.ok('Running pre-deploy commands');
+
                     if (command instanceof Array) {
                         async.eachSeries(command, function (command, callback) {
-                            grunt.log.subhead('--- ' + command);
+                            grunt.log.debug('--- ' + command);
                             execRemote(command, options.debug, callback);
                         }, callback);
                     } else {
-                        grunt.log.subhead('--- ' + command);;
+                        grunt.log.debug('--- ' + command);;
                         execRemote(command, options.debug, callback);
                     }
                 }
@@ -136,13 +137,13 @@ module.exports = function(grunt) {
 
             var createReleases = function(callback) {
                 var command = 'cd ' + options.deploy_path + ' && mkdir -p ' + versionLabel;
-                grunt.log.subhead('--------------- CREATING NEW RELEASE');
-                grunt.log.subhead('--- ' + command);
+                grunt.log.ok('Creating new release');
+                grunt.log.debug(command);
                 execRemote(command, options.debug, callback);
             };
 
             var scpBuild = function(callback) {
-                grunt.log.subhead('--------------- UPLOADING NEW BUILD');
+                grunt.log.ok('Uploading new build...');
                 grunt.log.debug('SCP FROM LOCAL: ' + options.local_path
                     + '\n TO REMOTE: ' + options.deploy_path + '/' + versionLabel + '/');
 
@@ -152,7 +153,6 @@ module.exports = function(grunt) {
                     if (err) {
                         grunt.log.errorlns(err);
                     } else {
-                        grunt.log.subhead('--- DONE UPLOADING');
                         callback();
                     }
                 });
@@ -162,22 +162,20 @@ module.exports = function(grunt) {
                 var delete_symlink = 'rm -rf ' + options.deploy_path + '/' + options.current_symlink;
                 var set_symlink = 'cd ' + options.deploy_path + ' && ln -s ' + versionLabel + ' ' + options.current_symlink;
                 var command = delete_symlink + ' && ' + set_symlink;
-                grunt.log.subhead('--------------- UPDATING SYM LINK');
-                grunt.log.subhead('--- ' + command);
+                grunt.log.debug('Updating symlink' + command);
                 execRemote(command, options.debug, callback);
             };
 
             var deleteRelease = function(callback) {
                 var command = 'rm -rf ' + options.deploy_path + '/' + versionLabel + '/';
-                grunt.log.subhead('--------------- DELETING RELEASE');
-                grunt.log.subhead('--- ' + command);
+                grunt.log.debug('Deleting release ' + command);
                 execRemote(command, options.debug, callback);
             };
 
             var deleteOldest = function (callback) {
                 var command = 'if [ $(ls -t1 ' + options.deploy_path + ' | wc -l) -gt "'+keep+'" ]; then t=`ls -t1 ' + options.deploy_path + '/ | tail -n 1`; rm -rf ' + options.deploy_path + '/$t/; fi';
-                grunt.log.subhead('--------------- DELETING OLDEST RELEASE');
-                grunt.log.subhead('--- ' + command);
+                grunt.log.debug('Deleting oldest release ' + command);
+
                 execRemote(command, options.debug, callback);
             };
 
@@ -186,14 +184,15 @@ module.exports = function(grunt) {
                     callback();
                 } else {
                     var command = options.after_deploy;
-                    grunt.log.subhead("--------------- RUNNING POST-DEPLOY COMMANDS");
+                    grunt.log.ok('Running post-deploy commands');
+
                     if (command instanceof Array) {
                         async.eachSeries(command, function (command, callback) {
-                            grunt.log.subhead('--- ' + command);;
+                            grunt.log.debug(command);;
                             execRemote(command, options.debug, callback);
                         }, callback);
                     } else {
-                        grunt.log.subhead('--- ' + command);;
+                        grunt.log.debug(command);;
                         execRemote(command, options.debug, callback);
                     }
                 }
