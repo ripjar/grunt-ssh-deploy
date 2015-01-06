@@ -277,8 +277,8 @@ module.exports = function(grunt) {
                 scpBuild,
                 saveNodeModules,
                 updateSymlink,
-                onAfterDeploy,
                 installNodeModules,
+                onAfterDeploy,
                 deleteOldest,
                 closeConnection
             ], function () {
