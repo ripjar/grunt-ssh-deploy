@@ -184,6 +184,7 @@ module.exports = function(grunt) {
                 client.scp(options.local_path, {
                     path: options.deploy_path + '/' + versionLabel + '/'
                 }, function (err) {
+
                     if (err) {
                         grunt.log.errorlns(err);
                     } else {
@@ -207,7 +208,7 @@ module.exports = function(grunt) {
             };
 
             var deleteOldest = function (callback) {
-                var command = 'if [ $(ls -t1 ' + options.deploy_path + ' | wc -l) -gt "'+keep+'" ]; then t=`ls -t1 ' + options.deploy_path + '/ | tail -n 1`; rm -rf ' + options.deploy_path + '/$t/; fi';
+                var command = 'if [ $(ls -t1 ' + options.deploy_path + ' | wc -l) -gt "'+(keep + 1)+'" ]; then t=`ls -t1 ' + options.deploy_path + '/ | tail -n 1`; rm -rf ' + options.deploy_path + '/$t/; fi';
                 grunt.log.debug('Deleting oldest release ' + command);
 
                 execRemote(command, options.debug, callback);
@@ -232,6 +233,37 @@ module.exports = function(grunt) {
                 }
             };
 
+            var saveNodeModules = function (callback) {
+                var command;
+                if (options.updateModules) {
+                    command = 'rm -rf ' + options.deploy_path + '/' +
+                        options.current_symlink + '/node_modules';
+                }
+                else {
+                    command = 'cd ' + options.deploy_path + '/'
+                        + options.current_symlink + ' && mv node_modules ../';
+                }
+
+                grunt.log.debug(command);
+                execRemote(command, options.debug, callback);
+            };
+
+            var installNodeModules = function (callback) {
+                var command;
+                if (options.updateModules) {
+                    grunt.log.ok('Updating node modules');
+                    command = 'cd ' + options.deploy_path + '/'
+                        + options.current_symlink + ' && npm install --production';
+                }
+                else {
+                    command = 'cd ' + options.deploy_path + '/'
+                        + options.current_symlink + ' && mv ../node_modules .';
+                }
+                grunt.log.debug(command);
+                execRemote(command, options.debug, callback);
+
+            };
+
             // closing connection to remote server
             var closeConnection = function(callback) {
                 connection.end();
@@ -243,8 +275,10 @@ module.exports = function(grunt) {
                 onBeforeDeploy,
                 createReleases,
                 scpBuild,
+                saveNodeModules,
                 updateSymlink,
                 onAfterDeploy,
+                installNodeModules,
                 deleteOldest,
                 closeConnection
             ], function () {

@@ -20,10 +20,10 @@ module.exports = function(grunt) {
 
 		var c = new Connection();
 		c.on('connect', function() {
-			grunt.log.subhead('Connecting :: ' + options.host);
+            grunt.log.ok('Connecting to ' + options.host);
 		});
 		c.on('ready', function() {
-			grunt.log.subhead('Connected :: ' + options.host);
+			grunt.log.ok('Connected');
 			// execution of tasks
 			execCommands(options,c);
 		});
@@ -60,20 +60,48 @@ module.exports = function(grunt) {
                 });
             };
 
+            var execRemoteForOutput = function(cmd, callback){
+                connection.exec(cmd, function(err, stream) {
+                    var out = '';
+                    if (err) {
+                        grunt.log.errorlns(err);
+                        grunt.log.subhead('ERROR ROLLING BACK. CLOSING CONNECTION.');
+                    }
+                    stream.on('data', function(data, extended) {
+
+                        out += data.toString();
+                    });
+                    stream.on('end', function() {
+                        grunt.log.debug('REMOTE: ' + cmd);
+                        if(!err) {
+                            callback(out);
+                        }
+                    });
+                });
+            };
+
             var updateSymlink = function(callback) {
                 var delete_symlink = 'rm -rf ' + options.deploy_path + '/' + options.current_symlink;
-                var set_symlink = 'cd ' + options.deploy_path + ' && t=`ls -t1 | sed -n 2p` && ln -s $t ' + options.current_symlink;
-                var command = delete_symlink + ' && ' + set_symlink;
-                grunt.log.subhead('--------------- UPDATING SYM LINK');
-                grunt.log.subhead('--- ' + command);
-                execRemote(command, options.debug, callback);
+                var set_symlink = 'cd ' + options.deploy_path + ' && t=`ls -t1 | sed -n 3p` && ln -s $t ' + options.current_symlink;
+                var command = set_symlink;
+
+
+                execRemoteForOutput(delete_symlink + ' && ls -t1 '+ options.deploy_path +'| sed -n 3p', function (prevVersion) {
+                    grunt.log.ok('Updating symlink to previous version: ' + prevVersion);
+                    grunt.log.debug('--- ' + command);
+                    execRemote(command, options.debug, callback);
+                });
             };
 
             var deleteRelease = function(callback) {
-                var command = 't=`ls -t1 ' + options.deploy_path + '/ | sed -n 1p` && rm -rf ' + options.deploy_path + '/$t/';
-                grunt.log.subhead('--------------- DELETING RELEASE');
-                grunt.log.subhead('--- ' + command);
-                execRemote(command, options.debug, callback);
+                var command = 't=`ls -t1 ' + options.deploy_path + '/ | sed -n 3p` && rm -rf ' + options.deploy_path + '/$t/';
+                var oldVerCommand = 'ls -t1 ' + options.deploy_path + ' | sed -n 3p';
+                execRemoteForOutput(oldVerCommand, function (output) {
+                    grunt.log.ok('Deleting rolled-back release: ' + output);
+                    grunt.log.debug('--- ' + command);
+                    execRemote(command, options.debug, callback);
+                });
+
             };
 
             // closing connection to remote server
@@ -83,9 +111,27 @@ module.exports = function(grunt) {
                 callback();
             };
 
+
+            var saveNodeModules = function (callback) {
+                var command = 'cd ' + options.deploy_path + '/'
+                        + options.current_symlink + ' && mv node_modules ../';
+                grunt.log.debug(command);
+                execRemote(command, options.debug, callback);
+            };
+
+            var restoreNodeModules = function (callback) {
+                var command = 'cd ' + options.deploy_path + '/'
+                        + options.current_symlink + ' && mv ../node_modules .';
+
+                grunt.log.debug(command);
+                execRemote(command, options.debug, callback);
+            };
+
             async.series([
+                saveNodeModules,
                 updateSymlink,
-                deleteRelease,
+                restoreNodeModules,
+                // deleteRelease,
                 closeConnection
             ], done);
         };
