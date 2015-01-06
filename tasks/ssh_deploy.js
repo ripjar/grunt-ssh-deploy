@@ -61,12 +61,12 @@ module.exports = function(grunt) {
 
         var c = new Connection();
         c.on('connect', function() {
-            grunt.log.ok('Connecting to ' + options.host + '...');
+            grunt.log.ok('Connecting to ' + (options.proxy?'PROXY: ':'') + options.host + '...');
         });
         c.on('ready', function() {
 
             if (proxy) {
-                grunt.log.ok('Connected to ' + options.host);
+                grunt.log.ok('Connected to PROXY:' + options.host);
                 var proxyConn = new Connection();
                 options.host = options.proxy;
                 proxyConn.on('connect', function () {
