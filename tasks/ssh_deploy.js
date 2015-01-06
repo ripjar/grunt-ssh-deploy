@@ -49,17 +49,47 @@ module.exports = function(grunt) {
         var versionLabel = options.versionLabel;
         var keep = options.keep;
 
+        // if we're using a proxy then that is the first host
+        if (options.proxy) {
+            var proxy = options.host;
+            options.host = options.proxy;
+            options.proxy = proxy;
+        }
         // scp defaults
         client.defaults(getScpOptions(options));
+
 
         var c = new Connection();
         c.on('connect', function() {
             grunt.log.ok('Connecting to ' + options.host + '...');
         });
         c.on('ready', function() {
-            grunt.log.ok('Connected');
-            // execution of tasks
-            execCommands(options,c);
+
+            if (proxy) {
+                grunt.log.ok('Connected to ' + options.host);
+                var proxyConn = new Connection();
+                options.host = options.proxy;
+                proxyConn.on('connect', function () {
+                    grunt.log.ok('Connecting to ' + options.host + '...');
+                });
+                proxyConn.on('ready', function () {
+                    grunt.log.ok('Connected to ' + options.host);
+                    execCommands(options, proxyConn);
+                });
+                c.exec('nc ' + options.proxy + ' 22', function (err, stream) {
+                    if (err) {
+                        c.end();
+                        grunt.fatal('Failed to proxy connections: ' + err);
+                    }
+                    options.sock = stream;
+                    proxyConn.connect(options);
+                });
+            }
+            else {
+                grunt.log.ok('Connected');
+                // execution of tasks
+                execCommands(options,c);
+            }
         });
         c.on('error', function(err) {
             grunt.log.subhead("Error :: " + options.host);
@@ -71,6 +101,10 @@ module.exports = function(grunt) {
 
             return true;
         });
+
+
+
+
         c.connect(options);
 
         var execCommands = function(options, connection){
